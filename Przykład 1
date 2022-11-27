@@ -1,0 +1,43 @@
+ public static final double[] rankPercentLimits={1,1,0.2,0.2,0.15,0.1};
+ public static final int[] rankPointsLimit={0,0,350,500,700,900};
+public static void updateRanks(){
+        List<PvpFraction> allFraction = PvpFraction.getAll();
+        HashMap<Integer, HashMap<Integer, ArrayList<PvpHeroSeasonFraction>>> rankMap = new HashMap<>();
+        allFraction.stream().forEach(fraction -> {
+            HashMap<Integer, ArrayList<PvpHeroSeasonFraction>> fractionRankMap = new HashMap<>();
+            for(int i = 1; i < rankPercentLimits.length; i++){
+                fractionRankMap.put(i,new ArrayList<>());
+            }
+            rankMap.put(fraction.getId(),fractionRankMap);
+        });
+
+        allFraction.stream().forEach(fraction -> {
+        //Wyciągane pojedyńczo dla każdej frakcji, z powodu możliwości różnych kombinacji występownia - mniej optymalna wersja ale prostrza
+            List<PvpHeroSeasonFraction> allHeroes = PvpHeroSeasonFraction.getAllInSeason(fraction.getId(), currentSeason);
+            allHeroes.stream().forEach(hero -> {
+                rankMap.get(hero.getIdFraction()).get(1);
+                for (int i = rankPointsLimit.length - 1; i > 0 ; i--) {
+                    int pointsLimit = rankPointsLimit[i];
+                    double percentLimit = rankPercentLimits[i];
+                    if(hero.getPoints() >= pointsLimit){
+                        if(rankMap.get(hero.getIdFraction()).get(i).size() < (int)(allHeroes.size() * percentLimit)){
+                            rankMap.get(hero.getIdFraction()).get(i).add(hero);
+                            break;
+                        }
+                    }
+                }
+            });
+        });
+
+        rankMap.forEach((idFraction, ranksMap) -> ranksMap.forEach((rank,heroList) -> heroList.stream().forEach(hero -> {
+            FlashClient client = DrServer.getClient(hero.getHero());
+            if(client == null){
+                hero.setRank(rank);
+                hero.update();
+            }else{
+                client.getPvpHero().setRank(rank);
+                client.getPvpHero().update();
+            }
+        })));
+
+    }
