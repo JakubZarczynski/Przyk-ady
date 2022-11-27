@@ -1,0 +1,100 @@
+/*    
+    public static int TOURNAMENTS_DAY_INTERVAL = 3;
+    public static int TOURNAMENTS_DAY_DELAY = 7;
+    public static int TOURNAMENTS_FIRST_HOUR_START = 20;
+    public static int TOURNAMENTS_SECOND_HOUR_START = 20;
+*/
+public static void generateLeague(int currentSeason){
+        List<Integer> tournamentsToAdd = new ArrayList<>();
+        HashMap<Integer,HashMap<Integer,List<Integer>>> groupMap = new HashMap<>();
+        List<LeagueTournamentsSets> allTournaments = LeagueTournamentsSets.getFullSet((currentSeason % 2) + 1);
+        for (LeagueTournamentsSets tournament : allTournaments){
+            if(groupMap.get(tournament.getGroupLvl()) == null){
+                List<Integer> typeArrayList = new ArrayList<>();
+                typeArrayList.add(0, tournament.getTournamentId());
+
+                HashMap<Integer,List<Integer>> typeHashMap = new HashMap<>();
+                typeHashMap.put(tournament.getGroupType(),typeArrayList);
+
+                groupMap.put(tournament.getGroupLvl(), typeHashMap);
+            }else{
+                if(groupMap.get(tournament.getGroupLvl()).get(tournament.getGroupType()) == null){
+                    List<Integer> typeArrayList = new ArrayList<>();
+                    typeArrayList.add(0, tournament.getTournamentId());
+                    groupMap.get(tournament.getGroupLvl()).put(tournament.getGroupType(), typeArrayList);
+                }else{
+                    groupMap.get(tournament.getGroupLvl()).get(tournament.getGroupType()).add(tournament.getTournamentId());
+
+                }
+            }
+
+        }
+
+        Random firstGroupRandom = new Random();
+        Random secondGroupRandom = new Random();
+        Random tournamentRandom = new Random();
+        int previousSecondGroup = -1;
+
+        int currentFirstGroup;
+        int currentSecondGroup;
+        int currentTournamentIndex;
+
+        List<Integer> lvlGroupList = new ArrayList<>();
+        List<Integer> typeGroupList = new ArrayList<>();
+        List<Integer> tournamentGroupList = new ArrayList<>();
+
+        while (tournamentsToAdd.size() < allTournaments.size()){
+            groupMap.forEach((firstGroupId, firstGroup) -> lvlGroupList.add(firstGroupId));
+            currentFirstGroup = firstGroupRandom.nextInt(lvlGroupList.size());
+            groupMap.get(lvlGroupList.get(currentFirstGroup)).forEach((secondGroupId,secondGroup) -> typeGroupList.add(secondGroupId));
+            currentFirstGroup = lvlGroupList.get(currentFirstGroup);
+
+            if(typeGroupList.size() <= 0){
+                continue;
+            }
+            currentSecondGroup = typeGroupList.get(secondGroupRandom.nextInt(typeGroupList.size())) ;
+            while((previousSecondGroup == currentSecondGroup || groupMap.get(currentFirstGroup).get(currentSecondGroup) == null) && tournamentGroupList.size() != 1){
+                currentSecondGroup = typeGroupList.get(secondGroupRandom.nextInt(typeGroupList.size()));
+            }
+            groupMap.get(currentFirstGroup).get(currentSecondGroup).forEach(tournamentGroupList::add);
+            currentTournamentIndex = tournamentRandom.nextInt(tournamentGroupList.size());
+            tournamentsToAdd.add(tournamentGroupList.get(currentTournamentIndex));
+
+
+            final int finalCurrentTournamentIndex = currentTournamentIndex;
+            groupMap.get(currentFirstGroup).get(currentSecondGroup).removeIf(tournament -> tournament.equals(tournamentGroupList.get(finalCurrentTournamentIndex)));
+            if(groupMap.get(currentFirstGroup).get(currentSecondGroup).size() == 0){
+                groupMap.get(currentFirstGroup).remove(currentSecondGroup);
+            }
+
+            previousSecondGroup =  currentSecondGroup;
+            tournamentGroupList.clear();
+            lvlGroupList.clear();
+            typeGroupList.clear();
+        }
+
+        final int[] dayInterval = {0};
+
+        tournamentsToAdd.forEach(id -> {
+
+            Turniej t = Settings.stworzTurniej(id);
+            int startHour;
+            if(dayInterval[0] % 2 == 0)
+                startHour = Settings.TOURNAMENTS_FIRST_HOUR_START;
+            else
+                startHour = Settings.TOURNAMENTS_SECOND_HOUR_START;
+
+            GregorianCalendar calendar = new GregorianCalendar(TimeZone.getDefault());
+            calendar.add(Calendar.DAY_OF_MONTH, dayInterval[0] +  Settings.TOURNAMENTS_DAY_DELAY);
+            calendar.set(Calendar.HOUR_OF_DAY, startHour);
+            calendar.set(Calendar.MINUTE, 0);
+            calendar.set(Calendar.SECOND, 0);
+            t.setData(calendar.getTime());
+
+
+            t.setLeague(1);
+            Turniej.save(t);
+            dayInterval[0] += Settings.TOURNAMENTS_DAY_INTERVAL;
+        });
+
+    }
