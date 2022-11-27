@@ -1,0 +1,8 @@
+//Przykład z zadania rekrutacyjnego 
+public static String toString(List<Integer> integers) throws IllegalArgumentException {
+        StringBuilder returnedString = new StringBuilder();
+        if (integers == null) {
+            throw new IllegalArgumentException();
+        }
+        return  integers.stream().map(number -> number % 2 == 0 ? "p"+number : "n"+number).collect(Collectors.joining(","));
+}
